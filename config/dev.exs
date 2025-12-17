@@ -1,11 +1,12 @@
 import Config
+Dotenvy.source!()
 
 # Configure your database
 config :token_management_service, TokenManagementService.Repo,
-  username: "postgres",
-  password: "postgres",
-  hostname: "localhost",
-  database: "token_management_service_dev",
+  username: System.get_env("DB_USERNAME", "postgres"),
+  password: System.get_env("DB_PASSWORD", "postgres"),
+  hostname: System.get_env("DB_HOST", "localhost"),
+  database: System.get_env("DB_NAME", "token_management_service_dev"),
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10

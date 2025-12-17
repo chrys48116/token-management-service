@@ -1,11 +1,18 @@
-# Script for populating the database. You can run it as:
-#
-#     mix run priv/repo/seeds.exs
-#
-# Inside the script, you can read and write to any of your
-# repositories directly:
-#
-#     TokenManagementService.Repo.insert!(%TokenManagementService.SomeSchema{})
-#
-# We recommend using the bang functions (`insert!`, `update!`
-# and so on) as they will fail if something goes wrong.
+alias TokenManagementService.Repo
+alias TokenManagementService.Tokens.Schemas.Token
+
+now = DateTime.utc_now()
+
+tokens =
+  Enum.map(1..100, fn _ ->
+    %{
+      status: "available",
+      last_activated_at: nil,
+      inserted_at: now,
+      updated_at: now
+    }
+  end)
+
+Repo.insert_all(Token, tokens)
+
+IO.puts("Seeded 100 available tokens")

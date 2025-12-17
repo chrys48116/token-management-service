@@ -15,7 +15,7 @@ defmodule TokenManagementService.Application do
       # Start a worker by calling: TokenManagementService.Worker.start_link(arg)
       # {TokenManagementService.Worker, arg},
       # Start to serve requests, typically the last entry
-      TokenManagementService.Tokens.Supervisor,
+      TokenManagementService.TokenPool.Supervisor,
       TokenManagementServiceWeb.Endpoint
     ]
 

@@ -1,4 +1,4 @@
-defmodule TokenManagementService.Tokens.TokenManager do
+defmodule TokenManagementService.TokenPool.TokenManager do
   use GenServer
 
   def start_link(_args) do

@@ -1,4 +1,4 @@
-defmodule TokenManagementService.Tokens.ExpirationScheduler do
+defmodule TokenManagementService.TokenPool.ExpirationScheduler do
   use GenServer
 
   def start_link(_args) do

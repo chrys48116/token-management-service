@@ -1,5 +1,4 @@
 import Config
-Dotenvy.source!()
 
 # Configure your database
 config :token_management_service, TokenManagementService.Repo,

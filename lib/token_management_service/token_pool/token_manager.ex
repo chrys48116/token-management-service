@@ -17,43 +17,73 @@ defmodule TokenManagementService.TokenPool.TokenManager do
 
   @impl true
   def init(_opts) do
-    _active_tokens = TokensRepo.list_active_tokens()
-    {:ok, %{}}
+    active_tokens =
+      TokensRepo.list_active_tokens()
+      |> Enum.reduce(%{}, fn token, acc ->
+        Map.put(acc, token.id, token.last_activated_at)
+      end)
+
+    {:ok, %{active: active_tokens}}
   end
 
   @impl true
   def handle_call(:allocate, _from, state) do
     now = DateTime.utc_now()
 
-    case TokensRepo.get_available_token() do
-      nil ->
-        case TokensRepo.get_oldest_active_token() do
-          nil ->
-            {:reply, {:error, :no_tokens_found}, state}
+    if map_size(state.active) < 100 do
+      case TokensRepo.get_available_token() do
+        nil ->
+          {:reply, {:error, :no_available_tokens}, state}
 
-          oldest ->
-            _ = TokensRepo.release_token(oldest.id, now, %{reason: "lru_eviction"})
-            case TokensRepo.activate_token(oldest.id, now, %{reason: "allocated_after_eviction"}) do
-              {:ok, _} -> {:reply, {:ok, oldest.id}, state}
-              {:error, _step, reason, _changes} -> {:reply, {:error, reason}, state}
-            end
-        end
+        token ->
+          case TokensRepo.activate_token(token.id, now, %{reason: "allocated"}) do
+            {:ok, _} ->
+              new_state =
+                put_in(state.active[token.id], now)
 
-      token ->
-        case TokensRepo.activate_token(token.id, now, %{reason: "allocated"}) do
-          {:ok, _} -> {:reply, {:ok, token.id}, state}
-          {:error, _step, reason, _changes} -> {:reply, {:error, reason}, state}
-        end
+              {:reply, {:ok, token.id}, new_state}
+
+            {:error, _step, reason, _} ->
+              {:reply, {:error, reason}, state}
+          end
+      end
+    else
+      # LRU eviction
+      {lru_token_id, _} =
+        Enum.min_by(state.active, fn {_id, last_used} -> last_used end)
+
+      _ = TokensRepo.release_token(lru_token_id, now, %{reason: "lru_eviction"})
+
+      case TokensRepo.activate_token(lru_token_id, now, %{reason: "allocated_after_eviction"}) do
+        {:ok, _} ->
+          new_state =
+            state
+            |> put_in([:active, lru_token_id], now)
+
+          {:reply, {:ok, lru_token_id}, new_state}
+
+        {:error, _step, reason, _} ->
+          {:reply, {:error, reason}, state}
+      end
     end
   end
-
   @impl true
   def handle_call({:release, token_id}, _from, state) do
     now = DateTime.utc_now()
 
-    case TokensRepo.release_token(token_id, now, %{reason: "released_by_client"}) do
-      {:ok, _} -> {:reply, :ok, state}
-      {:error, _step, reason, _changes} -> {:reply, {:error, reason}, state}
+    case Map.has_key?(state.active, token_id) do
+      false ->
+        {:reply, {:error, :token_not_active}, state}
+
+      true ->
+        case TokensRepo.release_token(token_id, now, %{reason: "released_by_client"}) do
+          {:ok, _} ->
+            new_state = update_in(state.active, &Map.delete(&1, token_id))
+            {:reply, :ok, new_state}
+
+          {:error, _step, reason, _} ->
+            {:reply, {:error, reason}, state}
+        end
     end
   end
 end

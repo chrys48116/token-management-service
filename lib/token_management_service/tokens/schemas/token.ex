@@ -10,13 +10,14 @@ defmodule TokenManagementService.Tokens.Schemas.Token do
   schema "tokens" do
     field :status, :string
     field :last_activated_at, :utc_datetime_usec
+    field :active_user_id, Ecto.UUID
 
     timestamps(type: :utc_datetime_usec)
   end
 
   def changeset(token, attrs) do
     token
-    |> cast(attrs, [:status, :last_activated_at])
+    |> cast(attrs, [:status, :last_activated_at, :active_user_id])
     |> validate_required([:status])
     |> validate_inclusion(:status, @statuses)
   end

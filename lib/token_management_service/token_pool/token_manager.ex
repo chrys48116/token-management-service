@@ -10,8 +10,8 @@ defmodule TokenManagementService.TokenPool.TokenManager do
     GenServer.start_link(__MODULE__, %{}, Keyword.put_new(opts, :name, __MODULE__))
   end
 
-  def allocate do
-    GenServer.call(__MODULE__, :allocate)
+  def allocate(user_id) when is_binary(user_id) do
+    GenServer.call(__MODULE__, {:allocate, user_id})
   end
 
   def release(token_id) do
@@ -48,7 +48,7 @@ defmodule TokenManagementService.TokenPool.TokenManager do
   end
 
   @impl true
-  def handle_call(:allocate, _from, state) do
+  def handle_call({:allocate, user_id}, _from, state) do
     now = DateTime.utc_now()
 
     if map_size(state.active) < 100 do
@@ -57,13 +57,13 @@ defmodule TokenManagementService.TokenPool.TokenManager do
           {:reply, {:error, :no_available_tokens}, state}
 
         token ->
-          case TokensRepo.activate_token(token.id, now, %{reason: "allocated"}) do
+          case TokensRepo.activate_token(token.id, user_id, now, %{reason: "allocated"}) do
             {:ok, _} ->
               new_state = put_in(state.active[token.id], now)
 
               ExpirationScheduler.schedule(token.id, @ttl_ms)
 
-              {:reply, {:ok, token.id}, new_state}
+              {:reply, {:ok, token.id, user_id}, new_state}
 
             {:error, _step, reason, _} ->
               {:reply, {:error, reason}, state}
@@ -76,7 +76,7 @@ defmodule TokenManagementService.TokenPool.TokenManager do
       _ = TokensRepo.release_token(lru_token_id, now, %{reason: "lru_eviction"})
       ExpirationScheduler.cancel(lru_token_id)
 
-      case TokensRepo.activate_token(lru_token_id, now, %{reason: "allocated_after_eviction"}) do
+      case TokensRepo.activate_token(lru_token_id, user_id, now, %{reason: "allocated_after_eviction"}) do
         {:ok, _} ->
           new_state =
             state
@@ -84,7 +84,7 @@ defmodule TokenManagementService.TokenPool.TokenManager do
 
           ExpirationScheduler.schedule(lru_token_id, @ttl_ms)
 
-          {:reply, {:ok, lru_token_id}, new_state}
+          {:reply, {:ok, lru_token_id, user_id}, new_state}
 
         {:error, _step, reason, _} ->
           {:reply, {:error, reason}, state}

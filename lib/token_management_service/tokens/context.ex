@@ -5,9 +5,10 @@ defmodule TokenManagementService.Tokens do
 
   alias TokenManagementService.TokenPool.TokenManager
 
-  def allocate_token do
-    TokenManager.allocate()
+  def allocate_token(user_id) when is_binary(user_id) do
+    TokenManager.allocate(user_id)
   end
+
 
   def release_token(token_id) do
     TokenManager.release(token_id)

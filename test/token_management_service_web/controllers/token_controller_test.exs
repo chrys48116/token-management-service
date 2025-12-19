@@ -4,6 +4,7 @@ defmodule TokenManagementServiceWeb.TokenControllerTest do
   @moduletag :token_pool
 
   alias TokenManagementService.Repo
+  alias TokenManagementService.TokenPool.TokenManager
   alias TokenManagementService.Tokens.Repo, as: TokensRepo
   alias TokenManagementService.Tokens.Schemas.{Token, TokenEvent}
 
@@ -31,22 +32,34 @@ defmodule TokenManagementServiceWeb.TokenControllerTest do
     test "evicts the oldest active token when 100 are in use", %{conn: conn} do
       Repo.delete_all(TokenEvent)
       Repo.delete_all(Token)
+      restart_token_pool()
 
-      Enum.each(1..100, fn _ -> insert_token() end)
+      base = DateTime.utc_now()
 
-      {activation_order, conn} =
-        Enum.map_reduce(1..100, conn, fn _, conn ->
+      Enum.each(1..100, fn idx ->
+        ts = DateTime.add(base, idx, :second)
+
+        insert_token(%{
+          inserted_at: ts,
+          updated_at: ts,
+          last_activated_at: ts
+        })
+      end)
+
+      conn =
+        Enum.reduce(1..100, conn, fn _, conn ->
           conn = post(conn, ~p"/api/tokens/allocate")
-          %{"token_id" => token_id} = json_response(conn, 200)
+          _ = json_response(conn, 200)
           Process.sleep(1)
-          {token_id, recycle(conn)}
+          recycle(conn)
         end)
 
-      oldest_id = List.first(activation_order)
+      state = :sys.get_state(TokenManager)
+      {expected_id, _} = Enum.min_by(state.active, fn {_id, last_used} -> last_used end)
 
       conn = post(conn, ~p"/api/tokens/allocate")
       assert %{"token_id" => reused_id, "user_id" => new_user} = json_response(conn, 200)
-      assert reused_id == oldest_id
+      assert reused_id == expected_id
 
       token = Repo.get!(Token, reused_id)
       assert token.active_user_id == new_user
@@ -176,14 +189,25 @@ defmodule TokenManagementServiceWeb.TokenControllerTest do
   end
 
   defp insert_token(attrs \\ %{}) do
-    params =
-      attrs
-      |> Map.put_new(:status, "available")
-      |> Map.put_new(:last_activated_at, nil)
-      |> Map.put_new(:active_user_id, nil)
+    defaults = %{
+      status: "available",
+      last_activated_at: nil,
+      active_user_id: nil
+    }
+
+    timestamps = Map.take(attrs, [:inserted_at, :updated_at])
+    token_attrs = Map.merge(defaults, Map.drop(attrs, [:inserted_at, :updated_at]))
 
     %Token{}
-    |> Token.changeset(params)
+    |> struct(timestamps)
+    |> Token.changeset(token_attrs)
     |> Repo.insert!()
+  end
+
+  defp restart_token_pool do
+    stop_supervised(TokenManagementService.TokenPool.TokenManager)
+    stop_supervised(TokenManagementService.TokenPool.ExpirationScheduler)
+    start_supervised!(TokenManagementService.TokenPool.ExpirationScheduler)
+    start_supervised!(TokenManagementService.TokenPool.TokenManager)
   end
 end

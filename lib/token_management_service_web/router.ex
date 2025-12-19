@@ -15,11 +15,11 @@ defmodule TokenManagementServiceWeb.Router do
     post "/tokens/allocate", TokenController, :allocate
     post "/tokens/cleanup", TokenController, :cleanup
 
-    get  "/tokens", TokenController, :index
-    get  "/tokens/:id", TokenController, :show
+    get "/tokens", TokenController, :index
+    get "/tokens/:id", TokenController, :show
     post "/tokens/:id/release", TokenController, :release
 
-    get  "/tokens/:id/events", TokenController, :events
+    get "/tokens/:id/events", TokenController, :events
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development

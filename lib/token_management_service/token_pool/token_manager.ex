@@ -80,7 +80,9 @@ defmodule TokenManagementService.TokenPool.TokenManager do
       _ = TokensRepo.release_token(lru_token_id, now, %{reason: "lru_eviction"})
       ExpirationScheduler.cancel(lru_token_id)
 
-      case TokensRepo.activate_token(lru_token_id, user_id, now, %{reason: "allocated_after_eviction"}) do
+      case TokensRepo.activate_token(lru_token_id, user_id, now, %{
+             reason: "allocated_after_eviction"
+           }) do
         {:ok, _} ->
           new_state =
             state

@@ -7,17 +7,28 @@ defmodule TokenManagementService.Application do
 
   @impl true
   def start(_type, _args) do
-    children = [
-      TokenManagementServiceWeb.Telemetry,
-      TokenManagementService.Repo,
-      {DNSCluster, query: Application.get_env(:token_management_service, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: TokenManagementService.PubSub},
-      # Start a worker by calling: TokenManagementService.Worker.start_link(arg)
-      # {TokenManagementService.Worker, arg},
-      # Start to serve requests, typically the last entry
-      TokenManagementService.TokenPool.Supervisor,
-      TokenManagementServiceWeb.Endpoint
-    ]
+    token_pool_children =
+      if Application.get_env(:token_management_service, :token_pool_enabled, true) do
+        [TokenManagementService.TokenPool.Supervisor]
+      else
+        []
+      end
+
+    children =
+      [
+        TokenManagementServiceWeb.Telemetry,
+        TokenManagementService.Repo,
+        {DNSCluster,
+         query: Application.get_env(:token_management_service, :dns_cluster_query) || :ignore},
+        {Phoenix.PubSub, name: TokenManagementService.PubSub}
+      ] ++
+        token_pool_children ++
+        [
+          # Start a worker by calling: TokenManagementService.Worker.start_link(arg)
+          # {TokenManagementService.Worker, arg},
+          # Start to serve requests, typically the last entry
+          TokenManagementServiceWeb.Endpoint
+        ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options

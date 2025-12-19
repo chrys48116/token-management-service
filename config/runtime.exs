@@ -118,6 +118,7 @@ if config_env() == :prod do
   #
   # See https://hexdocs.pm/swoosh/Swoosh.html#module-installation for details.
 end
+
 if config_env() == :dev do
   Dotenvy.source!(".env")
 end

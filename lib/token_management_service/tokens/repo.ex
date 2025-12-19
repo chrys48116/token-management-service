@@ -130,7 +130,7 @@ defmodule TokenManagementService.Tokens.Repo do
   def list_tokens("all"), do: Repo.all(TokenQuery.list_all())
   def list_tokens("available"), do: Repo.all(TokenQuery.list_available())
   def list_tokens("active"), do: Repo.all(TokenQuery.list_active())
-  def list_tokens(_), do: raise ArgumentError
+  def list_tokens(_), do: raise(ArgumentError)
 
   def list_events(token_id) do
     Repo.all(TokenEventQuery.list_by_token(token_id))

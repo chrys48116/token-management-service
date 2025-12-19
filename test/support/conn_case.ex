@@ -33,6 +33,12 @@ defmodule TokenManagementServiceWeb.ConnCase do
 
   setup tags do
     TokenManagementService.DataCase.setup_sandbox(tags)
+
+    if tags[:token_pool] do
+      start_supervised!(TokenManagementService.TokenPool.ExpirationScheduler)
+      start_supervised!(TokenManagementService.TokenPool.TokenManager)
+    end
+
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
 end

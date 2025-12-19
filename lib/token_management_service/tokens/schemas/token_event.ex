@@ -18,6 +18,7 @@ defmodule TokenManagementService.Tokens.Schemas.TokenEvent do
 
     timestamps(type: :utc_datetime_usec)
   end
+
   def changeset(token_event, attrs) do
     token_event
     |> cast(attrs, [:token_id, :event, :occurred_at, :metadata])

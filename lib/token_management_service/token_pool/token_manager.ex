@@ -1,28 +1,55 @@
 defmodule TokenManagementService.TokenPool.TokenManager do
+  @moduledoc """
+  GenServer responsible for enforcing the token invariants.
+
+  It keeps the in-memory view of active tokens, applies the 100 token ceiling,
+  performs LRU eviction, schedules TTL expirations and delegates persistence to
+  `TokenManagementService.Tokens.Repo`.
+  """
+
   use GenServer
 
   alias TokenManagementService.Tokens.Repo, as: TokensRepo
   alias TokenManagementService.TokenPool.ExpirationScheduler
 
   @ttl_ms 2 * 60 * 1000
+  @type token_id :: String.t()
+  @type user_id :: String.t()
 
+  @spec start_link(Keyword.t()) :: GenServer.on_start()
+  @doc """
+  Starts the TokenManager under a supervisor.
+  """
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, %{}, Keyword.put_new(opts, :name, __MODULE__))
   end
 
+  @spec allocate(user_id()) :: {:ok, token_id(), user_id()} | {:error, term()}
+  @doc """
+  Allocates a token for `user_id`, enforcing LRU and TTL scheduling.
+  """
   def allocate(user_id) when is_binary(user_id) do
     GenServer.call(__MODULE__, {:allocate, user_id})
   end
 
+  @spec release(token_id()) :: :ok | {:error, term()}
+  @doc """
+  Releases a token by id, cancelling timers and persisting the event.
+  """
   def release(token_id) do
     GenServer.call(__MODULE__, {:release, token_id})
   end
 
+  @spec cleanup_active_tokens() :: {:ok, non_neg_integer()} | {:error, term()}
+  @doc """
+  Releases every currently active token and returns how many were cleaned up.
+  """
   def cleanup_active_tokens do
     GenServer.call(__MODULE__, :cleanup_active_tokens)
   end
 
   @impl true
+  @spec init(term()) :: {:ok, %{active: %{token_id() => DateTime.t()}}}
   def init(_opts) do
     now = DateTime.utc_now()
 

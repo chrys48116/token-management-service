@@ -1,4 +1,10 @@
 defmodule TokenManagementServiceWeb.TokenController do
+  @moduledoc """
+  JSON controller exposing the token management API.
+
+  Each action delegates to the `TokenManagementService.Tokens` context and
+  translates domain tuples into HTTP responses.
+  """
   use TokenManagementServiceWeb, :controller
 
   alias TokenManagementService.Tokens

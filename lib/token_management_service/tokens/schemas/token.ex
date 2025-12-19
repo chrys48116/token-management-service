@@ -1,4 +1,10 @@
 defmodule TokenManagementService.Tokens.Schemas.Token do
+  @moduledoc """
+  Ecto schema representing the current state of a token in the pool.
+
+  Only two statuses are allowed: `\"available\"` and `\"active\"`.
+  """
+
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -15,6 +21,10 @@ defmodule TokenManagementService.Tokens.Schemas.Token do
     timestamps(type: :utc_datetime_usec)
   end
 
+  @typedoc "Persistent representation of a token."
+  @type t :: %__MODULE__{}
+
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(token, attrs) do
     token
     |> cast(attrs, [:status, :last_activated_at, :active_user_id])

@@ -31,6 +31,14 @@ defmodule TokenManagementService.Tokens.Queries.TokenQuery do
     from t in active(), select: count(t.id)
   end
 
+  def list_all do
+    from t in Token, order_by: [asc: t.inserted_at]
+  end
+
+  def list_available do
+    from t in Token, where: t.status == "available", order_by: [asc: t.inserted_at]
+  end
+
   def list_active do
     from t in active(), order_by: [asc: t.last_activated_at]
   end

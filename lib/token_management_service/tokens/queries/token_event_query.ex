@@ -12,4 +12,10 @@ defmodule TokenManagementService.Tokens.Queries.TokenEventQuery do
       order_by: [desc: e.occurred_at],
       limit: ^limit
   end
+
+  def list_by_token(token_id) do
+    from e in TokenEvent,
+      where: e.token_id == ^token_id,
+      order_by: [desc: e.occurred_at]
+  end
 end

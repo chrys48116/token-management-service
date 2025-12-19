@@ -9,6 +9,19 @@ defmodule TokenManagementServiceWeb.Router do
     pipe_through :api
   end
 
+  scope "/api", TokenManagementServiceWeb do
+    pipe_through :api
+
+    post "/tokens/allocate", TokenController, :allocate
+    post "/tokens/cleanup", TokenController, :cleanup
+
+    get  "/tokens", TokenController, :index
+    get  "/tokens/:id", TokenController, :show
+    post "/tokens/:id/release", TokenController, :release
+
+    get  "/tokens/:id/events", TokenController, :events
+  end
+
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:token_management_service, :dev_routes) do
     # If you want to use the LiveDashboard in production, you should put

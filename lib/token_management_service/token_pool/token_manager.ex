@@ -18,6 +18,10 @@ defmodule TokenManagementService.TokenPool.TokenManager do
     GenServer.call(__MODULE__, {:release, token_id})
   end
 
+  def cleanup_active_tokens do
+    GenServer.call(__MODULE__, :cleanup_active_tokens)
+  end
+
   @impl true
   def init(_opts) do
     now = DateTime.utc_now()
@@ -90,6 +94,33 @@ defmodule TokenManagementService.TokenPool.TokenManager do
           {:reply, {:error, reason}, state}
       end
     end
+  end
+
+  @impl true
+  def handle_call(:cleanup_active_tokens, _from, state) do
+    now = DateTime.utc_now()
+
+    {released_ids, maybe_error} =
+      Enum.reduce(state.active, {[], nil}, fn {token_id, _}, {released, error_reason} ->
+        case TokensRepo.release_token(token_id, now, %{reason: "cleanup"}) do
+          {:ok, _} ->
+            ExpirationScheduler.cancel(token_id)
+            {[token_id | released], error_reason}
+
+          {:error, _step, reason, _changes} ->
+            {released, error_reason || reason}
+        end
+      end)
+
+    new_active = Map.drop(state.active, released_ids)
+
+    reply =
+      case maybe_error do
+        nil -> {:ok, length(released_ids)}
+        reason -> {:error, reason}
+      end
+
+    {:reply, reply, %{state | active: new_active}}
   end
 
   @impl true

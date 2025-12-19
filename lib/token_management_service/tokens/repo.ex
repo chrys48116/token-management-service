@@ -2,7 +2,7 @@ defmodule TokenManagementService.Tokens.Repo do
   alias Ecto.Multi
   alias TokenManagementService.Repo
 
-  alias TokenManagementService.Tokens.Queries.TokenQuery
+  alias TokenManagementService.Tokens.Queries.{TokenEventQuery, TokenQuery}
   alias TokenManagementService.Tokens.Schemas.{Token, TokenEvent}
 
   def count_active do
@@ -26,8 +26,6 @@ defmodule TokenManagementService.Tokens.Repo do
   end
 
   def activate_token(token_or_id, user_id, occurred_at, metadata \\ %{})
-  def release_token(token_or_id, occurred_at, metadata \\ %{})
-  def expire_token(token_or_id, occurred_at, metadata \\ %{})
 
   def activate_token(%Token{id: token_id}, user_id, occurred_at, metadata) do
     activate_token(token_id, user_id, occurred_at, metadata)
@@ -44,6 +42,8 @@ defmodule TokenManagementService.Tokens.Repo do
     |> Multi.insert(:event, build_event_changeset(token_id, "activated", occurred_at, metadata))
     |> Repo.transaction()
   end
+
+  def release_token(token_or_id, occurred_at, metadata \\ %{})
 
   def release_token(%Token{id: token_id}, occurred_at, metadata) do
     release_token(token_id, occurred_at, metadata)
@@ -62,6 +62,8 @@ defmodule TokenManagementService.Tokens.Repo do
     |> Multi.insert(:event, build_event_changeset(token_id, "released", occurred_at, metadata))
     |> Repo.transaction()
   end
+
+  def expire_token(token_or_id, occurred_at, metadata \\ %{})
 
   def expire_token(%Token{id: token_id}, occurred_at, metadata) do
     expire_token(token_id, occurred_at, metadata)
@@ -120,4 +122,17 @@ defmodule TokenManagementService.Tokens.Repo do
 
   defp maybe_put_user_id(metadata, nil), do: metadata
   defp maybe_put_user_id(metadata, user_id), do: Map.put(metadata, "user_id", user_id)
+
+  def get_token(id) do
+    Repo.one(TokenQuery.by_id(id))
+  end
+
+  def list_tokens("all"), do: Repo.all(TokenQuery.list_all())
+  def list_tokens("available"), do: Repo.all(TokenQuery.list_available())
+  def list_tokens("active"), do: Repo.all(TokenQuery.list_active())
+  def list_tokens(_), do: raise ArgumentError
+
+  def list_events(token_id) do
+    Repo.all(TokenEventQuery.list_by_token(token_id))
+  end
 end

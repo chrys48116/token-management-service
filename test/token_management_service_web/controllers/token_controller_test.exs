@@ -5,7 +5,7 @@ defmodule TokenManagementServiceWeb.TokenControllerTest do
 
   alias TokenManagementService.Repo
   alias TokenManagementService.Tokens.Repo, as: TokensRepo
-  alias TokenManagementService.Tokens.Schemas.Token
+  alias TokenManagementService.Tokens.Schemas.{Token, TokenEvent}
 
   describe "POST /api/tokens/allocate" do
     test "activates the oldest available token", %{conn: conn} do
@@ -25,6 +25,31 @@ defmodule TokenManagementServiceWeb.TokenControllerTest do
       conn = post(conn, ~p"/api/tokens/allocate")
 
       assert %{"error" => "no_available_tokens"} = json_response(conn, 422)
+    end
+
+    @tag :lru
+    test "evicts the oldest active token when 100 are in use", %{conn: conn} do
+      Repo.delete_all(TokenEvent)
+      Repo.delete_all(Token)
+
+      Enum.each(1..100, fn _ -> insert_token() end)
+
+      {activation_order, conn} =
+        Enum.map_reduce(1..100, conn, fn _, conn ->
+          conn = post(conn, ~p"/api/tokens/allocate")
+          %{"token_id" => token_id} = json_response(conn, 200)
+          Process.sleep(1)
+          {token_id, recycle(conn)}
+        end)
+
+      oldest_id = List.first(activation_order)
+
+      conn = post(conn, ~p"/api/tokens/allocate")
+      assert %{"token_id" => reused_id, "user_id" => new_user} = json_response(conn, 200)
+      assert reused_id == oldest_id
+
+      token = Repo.get!(Token, reused_id)
+      assert token.active_user_id == new_user
     end
   end
 

@@ -95,6 +95,23 @@ Substitua `<token_id>` pelo valor retornado no endpoint de alocação.
 
 ---
 
+## Rodando com Docker
+
+```bash
+docker compose up --build
+```
+
+Depois acesse `http://localhost:4000/api`.
+
+Para executar comandos dentro do container:
+
+```bash
+docker compose run --rm web mix ecto.setup
+docker compose run --rm web mix test
+```
+
+---
+
 ## Detalhes de Implementação
 
 - **TokenManager (GenServer)**
